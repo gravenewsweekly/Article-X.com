@@ -1,94 +1,40 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-storage.js";
+import { auth, db } from "./firebase-config.js";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+import { setDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-// Firebase Config
-const firebaseConfig = {
-    apiKey: "AIzaSyCQBM2lJabF0jiQeBp0R5RAA0BnGDjZuLY",
-    authDomain: "articlex-f2b8f.firebaseapp.com",
-    projectId: "articlex-f2b8f",
-    storageBucket: "articlex-f2b8f.appspot.com",
-    messagingSenderId: "392539639323",
-    appId: "1:392539639323:web:2dfbf35b2b4adfa70ef2be",
-    measurementId: "G-5E5TYNZJQ9"
-};
+// Signup Function
+document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();  // Prevent Refresh
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getFirestore();
-const storage = getStorage();
+    const email = document.getElementById("signupEmail").value;
+    const password = document.getElementById("signupPassword").value;
 
-// Ensure DOM is loaded before executing authentication checks
-document.addEventListener("DOMContentLoaded", () => {
-    onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-            window.location.href = "login.html";
-        } else {
-            document.getElementById("userName").innerText = user.displayName || "User";
-            loadUserProfile(user.uid);
-        }
-    });
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-    // Logout Button - Ensure it exists before adding event listener
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            signOut(auth).then(() => {
-                window.location.href = "login.html";
-            });
-        });
+        // Save user data in Firestore
+        await setDoc(doc(db, "users", user.uid), { email, bio: "", website: "", profilePic: "" });
+
+        alert("Signup Successful! Redirecting to Dashboard...");
+        window.location.href = "dashboard.html";
+    } catch (error) {
+        alert(error.message);
     }
-
-    // Save Bio
-    document.getElementById("saveBio").addEventListener("click", async () => {
-        const user = auth.currentUser;
-        if (user) {
-            await setDoc(doc(db, "users", user.uid), {
-                bio: document.getElementById("bioText").value
-            }, { merge: true });
-            alert("Bio saved!");
-        }
-    });
-
-    // Save Links
-    document.getElementById("saveLinks").addEventListener("click", async () => {
-        const user = auth.currentUser;
-        if (user) {
-            await setDoc(doc(db, "users", user.uid), {
-                website: document.getElementById("websiteLink").value,
-                twitter: document.getElementById("twitterLink").value
-            }, { merge: true });
-            alert("Links saved!");
-        }
-    });
-
-    // Upload Profile Picture
-    document.getElementById("uploadProfilePic").addEventListener("change", async (event) => {
-        const user = auth.currentUser;
-        if (user) {
-            const file = event.target.files[0];
-            const storageRef = ref(storage, `profilePictures/${user.uid}`);
-            await uploadBytes(storageRef, file);
-            const imageUrl = await getDownloadURL(storageRef);
-            document.getElementById("profilePic").src = imageUrl;
-            await setDoc(doc(db, "users", user.uid), { profilePic: imageUrl }, { merge: true });
-            alert("Profile picture updated!");
-        }
-    });
 });
 
-// Load Profile Data Function
-async function loadUserProfile(userId) {
-    const userDoc = await getDoc(doc(db, "users", userId));
-    if (userDoc.exists()) {
-        const userData = userDoc.data();
-        document.getElementById("bioText").value = userData.bio || "";
-        document.getElementById("websiteLink").value = userData.website || "";
-        document.getElementById("twitterLink").value = userData.twitter || "";
-        if (userData.profilePic) {
-            document.getElementById("profilePic").src = userData.profilePic;
-        }
+// Login Function
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();  // Prevent Refresh
+
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Login Successful! Redirecting to Dashboard...");
+        window.location.href = "dashboard.html";
+    } catch (error) {
+        alert(error.message);
     }
-}
+});
