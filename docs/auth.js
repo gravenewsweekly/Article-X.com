@@ -20,24 +20,66 @@ const auth = getAuth();
 const db = getFirestore();
 const storage = getStorage();
 
-// Check if User is Logged In
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-    } else {
-        document.getElementById("userName").innerText = user.displayName || "User";
-        loadUserProfile(user.uid);
-    }
-});
+// Ensure DOM is loaded before executing authentication checks
+document.addEventListener("DOMContentLoaded", () => {
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = "login.html";
+        } else {
+            document.getElementById("userName").innerText = user.displayName || "User";
+            loadUserProfile(user.uid);
+        }
+    });
 
-// Logout Button
-document.getElementById("logoutBtn").addEventListener("click", () => {
-    signOut(auth).then(() => {
-        window.location.href = "login.html";
+    // Logout Button - Ensure it exists before adding event listener
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "login.html";
+            });
+        });
+    }
+
+    // Save Bio
+    document.getElementById("saveBio").addEventListener("click", async () => {
+        const user = auth.currentUser;
+        if (user) {
+            await setDoc(doc(db, "users", user.uid), {
+                bio: document.getElementById("bioText").value
+            }, { merge: true });
+            alert("Bio saved!");
+        }
+    });
+
+    // Save Links
+    document.getElementById("saveLinks").addEventListener("click", async () => {
+        const user = auth.currentUser;
+        if (user) {
+            await setDoc(doc(db, "users", user.uid), {
+                website: document.getElementById("websiteLink").value,
+                twitter: document.getElementById("twitterLink").value
+            }, { merge: true });
+            alert("Links saved!");
+        }
+    });
+
+    // Upload Profile Picture
+    document.getElementById("uploadProfilePic").addEventListener("change", async (event) => {
+        const user = auth.currentUser;
+        if (user) {
+            const file = event.target.files[0];
+            const storageRef = ref(storage, `profilePictures/${user.uid}`);
+            await uploadBytes(storageRef, file);
+            const imageUrl = await getDownloadURL(storageRef);
+            document.getElementById("profilePic").src = imageUrl;
+            await setDoc(doc(db, "users", user.uid), { profilePic: imageUrl }, { merge: true });
+            alert("Profile picture updated!");
+        }
     });
 });
 
-// Load Profile Data
+// Load Profile Data Function
 async function loadUserProfile(userId) {
     const userDoc = await getDoc(doc(db, "users", userId));
     if (userDoc.exists()) {
@@ -50,39 +92,3 @@ async function loadUserProfile(userId) {
         }
     }
 }
-
-// Save Bio & Links
-document.getElementById("saveBio").addEventListener("click", async () => {
-    const user = auth.currentUser;
-    if (user) {
-        await setDoc(doc(db, "users", user.uid), {
-            bio: document.getElementById("bioText").value
-        }, { merge: true });
-        alert("Bio saved!");
-    }
-});
-
-document.getElementById("saveLinks").addEventListener("click", async () => {
-    const user = auth.currentUser;
-    if (user) {
-        await setDoc(doc(db, "users", user.uid), {
-            website: document.getElementById("websiteLink").value,
-            twitter: document.getElementById("twitterLink").value
-        }, { merge: true });
-        alert("Links saved!");
-    }
-});
-
-// Upload Profile Picture
-document.getElementById("uploadProfilePic").addEventListener("change", async (event) => {
-    const user = auth.currentUser;
-    if (user) {
-        const file = event.target.files[0];
-        const storageRef = ref(storage, `profilePictures/${user.uid}`);
-        await uploadBytes(storageRef, file);
-        const imageUrl = await getDownloadURL(storageRef);
-        document.getElementById("profilePic").src = imageUrl;
-        await setDoc(doc(db, "users", user.uid), { profilePic: imageUrl }, { merge: true });
-        alert("Profile picture updated!");
-    }
-});
